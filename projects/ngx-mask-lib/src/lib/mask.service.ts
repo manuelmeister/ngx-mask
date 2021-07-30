@@ -75,6 +75,9 @@ export class MaskService extends MaskApplierService {
       } else {
         actualResult = [];
       }
+      if (this.showMaskTyped) {
+        inputValue = this.removeMask(inputValue);
+      }
       newInputValue =
         this.actualValue.length && actualResult.length <= inputValue.length
           ? this.shiftTypedSymbols(actualResult.join(''))
