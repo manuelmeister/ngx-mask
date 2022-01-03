@@ -13,9 +13,8 @@ import { CustomKeyboardEvent } from './custom-keyboard-event';
 import { config, IConfig, timeMasks, withoutValidation } from './config';
 import { MaskService } from './mask.service';
 
-// tslint:disable deprecation
-// tslint:disable no-input-rename
 @Directive({
+  // eslint-disable-next-line @angular-eslint/directive-selector
   selector: 'input[mask], textarea[mask]',
   providers: [
     {
@@ -32,6 +31,7 @@ import { MaskService } from './mask.service';
   ],
 })
 export class MaskDirective implements ControlValueAccessor, OnChanges, Validator {
+  // eslint-disable-next-line @angular-eslint/no-input-rename
   @Input('mask') public maskExpression: string = '';
   @Input() public specialCharacters: IConfig['specialCharacters'] = [];
   @Input() public patterns: IConfig['patterns'] = {};
@@ -61,188 +61,70 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
 
   public constructor(
     @Inject(DOCUMENT) private document: any,
-    private _maskService: MaskService,
+    public _maskService: MaskService,
     @Inject(config) protected _config: IConfig
   ) {}
 
-  public onChange = (_: any) => {};
-  public onTouch = () => {};
-
-  public ngOnChanges(changes: SimpleChanges): void {
-    const {
-      maskExpression,
-      specialCharacters,
-      patterns,
-      prefix,
-      suffix,
-      thousandSeparator,
-      decimalMarker,
-      dropSpecialCharacters,
-      hiddenInput,
-      showMaskTyped,
-      placeHolderCharacter,
-      shownMaskExpression,
-      showTemplate,
-      clearIfNotMatch,
-      validation,
-      separatorLimit,
-      allowNegativeNumbers,
-      leadZeroDateTime,
-    } = changes;
-    if (maskExpression) {
-      if (maskExpression.currentValue !== maskExpression.previousValue && !maskExpression.firstChange) {
-        this._maskService.maskChanged = true;
-      }
-      this._maskValue = maskExpression.currentValue || '';
-      if (maskExpression.currentValue && maskExpression.currentValue.split('||').length > 1) {
-        this._maskExpressionArray = maskExpression.currentValue.split('||').sort((a: string, b: string) => {
-          return a.length - b.length;
-        });
-        this._maskValue = this._maskExpressionArray[0];
-        this.maskExpression = this._maskExpressionArray[0];
-        this._maskService.maskExpression = this._maskExpressionArray[0];
-      }
+  @HostListener('blur')
+  public onBlur(): void {
+    if (this._maskValue) {
+      this._maskService.clearIfNotMatchFn();
     }
-    if (specialCharacters) {
-      if (!specialCharacters.currentValue || !Array.isArray(specialCharacters.currentValue)) {
-        return;
-      } else {
-        this._maskService.maskSpecialCharacters = specialCharacters.currentValue || [];
-      }
-    }
-    // Only overwrite the mask available patterns if a pattern has actually been passed in
-    if (patterns && patterns.currentValue) {
-      this._maskService.maskAvailablePatterns = patterns.currentValue;
-    }
-    if (prefix) {
-      this._maskService.prefix = prefix.currentValue;
-    }
-    if (suffix) {
-      this._maskService.suffix = suffix.currentValue;
-    }
-    if (thousandSeparator) {
-      this._maskService.thousandSeparator = thousandSeparator.currentValue;
-    }
-    if (decimalMarker) {
-      this._maskService.decimalMarker = decimalMarker.currentValue;
-    }
-    if (dropSpecialCharacters) {
-      this._maskService.dropSpecialCharacters = dropSpecialCharacters.currentValue;
-    }
-    if (hiddenInput) {
-      this._maskService.hiddenInput = hiddenInput.currentValue;
-    }
-    if (showMaskTyped) {
-      this._maskService.showMaskTyped = showMaskTyped.currentValue;
-    }
-    if (placeHolderCharacter) {
-      this._maskService.placeHolderCharacter = placeHolderCharacter.currentValue;
-    }
-    if (shownMaskExpression) {
-      this._maskService.shownMaskExpression = shownMaskExpression.currentValue;
-    }
-    if (showTemplate) {
-      this._maskService.showTemplate = showTemplate.currentValue;
-    }
-    if (clearIfNotMatch) {
-      this._maskService.clearIfNotMatch = clearIfNotMatch.currentValue;
-    }
-    if (validation) {
-      this._maskService.validation = validation.currentValue;
-    }
-    if (separatorLimit) {
-      this._maskService.separatorLimit = separatorLimit.currentValue;
-    }
-    if (allowNegativeNumbers) {
-      this._maskService.allowNegativeNumbers = allowNegativeNumbers.currentValue;
-      if (this._maskService.allowNegativeNumbers) {
-        this._maskService.maskSpecialCharacters = this._maskService.maskSpecialCharacters.filter(
-          (c: string) => c !== '-'
-        );
-      }
-    }
-    if (leadZeroDateTime) {
-      this._maskService.leadZeroDateTime = leadZeroDateTime.currentValue;
-    }
-    this._applyMask();
+    this.onTouch();
   }
 
-  // tslint:disable-next-line: cyclomatic-complexity
-  public validate({ value }: FormControl): ValidationErrors | null {
-    if (!this._maskService.validation || !this._maskValue) {
-      return null;
+  @HostListener('click', ['$event'])
+  public onClick(e: MouseEvent | CustomKeyboardEvent): void {
+    if (!this._maskValue) {
+      return;
     }
-    if (this._maskService.ipError) {
-      return this._createValidationError(value);
-    }
-    if (this._maskService.cpfCnpjError) {
-      return this._createValidationError(value);
-    }
-    if (this._maskValue.startsWith('separator')) {
-      return null;
-    }
-    if (withoutValidation.includes(this._maskValue)) {
-      return null;
-    }
-    if (this._maskService.clearIfNotMatch) {
-      return null;
-    }
-    if (timeMasks.includes(this._maskValue)) {
-      return this._validateTime(value);
-    }
-    if (value && value.toString().length >= 1) {
-      let counterOfOpt = 0;
-      for (const key in this._maskService.maskAvailablePatterns) {
-        if (
-          this._maskService.maskAvailablePatterns[key].optional &&
-          this._maskService.maskAvailablePatterns[key].optional === true
-        ) {
-          if (this._maskValue.indexOf(key) !== this._maskValue.lastIndexOf(key)) {
-            const opt: string = this._maskValue
-              .split('')
-              .filter((i: string) => i === key)
-              .join('');
-            counterOfOpt += opt.length;
-          } else if (this._maskValue.indexOf(key) !== -1) {
-            counterOfOpt++;
-          }
-          if (this._maskValue.indexOf(key) !== -1 && value.toString().length >= this._maskValue.indexOf(key)) {
-            return null;
-          }
-          if (counterOfOpt === this._maskValue.length) {
-            return null;
+    const el: HTMLInputElement = e.target as HTMLInputElement;
+    const posStart = 0;
+    const posEnd = 0;
+    if (
+      el !== null &&
+      el.selectionStart !== null &&
+      el.selectionStart === el.selectionEnd &&
+      el.selectionStart > this._maskService.prefix.length &&
+      // eslint-disable-next-line
+      (e as any).keyCode !== 38
+    ) {
+      if (this._maskService.showMaskTyped) {
+        // We are showing the mask in the input
+        this._maskService.maskIsShown = this._maskService.showMaskInInput();
+        if (el.setSelectionRange && this._maskService.prefix + this._maskService.maskIsShown === el.value) {
+          // the input ONLY contains the mask, so position the cursor at the start
+          el.focus();
+          el.setSelectionRange(posStart, posEnd);
+        } else {
+          // the input contains some characters already
+          if (el.selectionStart > this._maskService.actualValue.length) {
+            // if the user clicked beyond our value's length, position the cursor at the end of our value
+            el.setSelectionRange(this._maskService.actualValue.length, this._maskService.actualValue.length);
           }
         }
       }
-      if (
-        this._maskValue.indexOf('{') === 1 &&
-        value.toString().length === this._maskValue.length + Number(this._maskValue.split('{')[1].split('}')[0]) - 4
-      ) {
-        return null;
-      }
-      if (this._maskValue.indexOf('*') === 1 || this._maskValue.indexOf('?') === 1) {
-        return null;
-      } else if (
-        (this._maskValue.indexOf('*') > 1 && value.toString().length < this._maskValue.indexOf('*')) ||
-        (this._maskValue.indexOf('?') > 1 && value.toString().length < this._maskValue.indexOf('?')) ||
-        this._maskValue.indexOf('{') === 1
-      ) {
-        return this._createValidationError(value);
-      }
-      if (this._maskValue.indexOf('*') === -1 || this._maskValue.indexOf('?') === -1) {
-        const length: number = this._maskService.dropSpecialCharacters
-          ? this._maskValue.length - this._maskService.checkSpecialCharAmount(this._maskValue) - counterOfOpt
-          : this._maskValue.length - counterOfOpt;
-        if (value.toString().length < length) {
-          return this._createValidationError(value);
-        }
-      }
     }
-    return null;
-  }
-  @HostListener('paste')
-  public onPaste() {
-    this._justPasted = true;
+    const nextValue: string | null =
+      !el.value || el.value === this._maskService.prefix
+        ? this._maskService.prefix + this._maskService.maskIsShown
+        : el.value;
+
+    /** Fix of cursor position jumping to end in most browsers no matter where cursor is inserted onFocus */
+    if (el.value !== nextValue) {
+      el.value = nextValue;
+    }
+
+    /** fix of cursor position with prefix when mouse click occur */
+    if (((el.selectionStart as number) || (el.selectionEnd as number)) <= this._maskService.prefix.length) {
+      el.selectionStart = this._maskService.prefix.length;
+      return;
+    }
+
+    /** select only inserted text */
+    if ((el.selectionEnd as number) > this._getActualInputLength()) {
+      el.selectionEnd = this._getActualInputLength();
+    }
   }
 
   @HostListener('input', ['$event'])
@@ -290,69 +172,7 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
     this._position = null;
   }
 
-  @HostListener('blur')
-  public onBlur(): void {
-    if (this._maskValue) {
-      this._maskService.clearIfNotMatchFn();
-    }
-    this.onTouch();
-  }
-
-  @HostListener('click', ['$event'])
-  public onFocus(e: MouseEvent | CustomKeyboardEvent): void {
-    if (!this._maskValue) {
-      return;
-    }
-    const el: HTMLInputElement = e.target as HTMLInputElement;
-    const posStart = 0;
-    const posEnd = 0;
-    if (
-      el !== null &&
-      el.selectionStart !== null &&
-      el.selectionStart === el.selectionEnd &&
-      el.selectionStart > this._maskService.prefix.length &&
-      // tslint:disable-next-line
-      (e as any).keyCode !== 38
-    ) {
-      if (this._maskService.showMaskTyped) {
-        // We are showing the mask in the input
-        this._maskService.maskIsShown = this._maskService.showMaskInInput();
-        if (el.setSelectionRange && this._maskService.prefix + this._maskService.maskIsShown === el.value) {
-          // the input ONLY contains the mask, so position the cursor at the start
-          el.focus();
-          el.setSelectionRange(posStart, posEnd);
-        } else {
-          // the input contains some characters already
-          if (el.selectionStart > this._maskService.actualValue.length) {
-            // if the user clicked beyond our value's length, position the cursor at the end of our value
-            el.setSelectionRange(this._maskService.actualValue.length, this._maskService.actualValue.length);
-          }
-        }
-      }
-    }
-    const nextValue: string | null =
-      !el.value || el.value === this._maskService.prefix
-        ? this._maskService.prefix + this._maskService.maskIsShown
-        : el.value;
-
-    /** Fix of cursor position jumping to end in most browsers no matter where cursor is inserted onFocus */
-    if (el.value !== nextValue) {
-      el.value = nextValue;
-    }
-
-    /** fix of cursor position with prefix when mouse click occur */
-    if (((el.selectionStart as number) || (el.selectionEnd as number)) <= this._maskService.prefix.length) {
-      el.selectionStart = this._maskService.prefix.length;
-      return;
-    }
-
-    /** select only inserted text */
-    if ((el.selectionEnd as number) > this._getActualInputLength()) {
-      el.selectionEnd = this._getActualInputLength();
-    }
-  }
-
-  // tslint:disable-next-line: cyclomatic-complexity
+  // eslint-disable-next-line complexity
   @HostListener('keydown', ['$event'])
   public onKeyDown(e: CustomKeyboardEvent): void {
     if (!this._maskValue) {
@@ -427,6 +247,187 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
     }
     this._maskService.selStart = el.selectionStart;
     this._maskService.selEnd = el.selectionEnd;
+  }
+
+  @HostListener('paste')
+  public onPaste() {
+    this._justPasted = true;
+  }
+
+  public onChange = (_: any) => {};
+  public onTouch = () => {};
+
+  public ngOnChanges(changes: SimpleChanges): void {
+    const {
+      maskExpression,
+      specialCharacters,
+      patterns,
+      prefix,
+      suffix,
+      thousandSeparator,
+      decimalMarker,
+      dropSpecialCharacters,
+      hiddenInput,
+      showMaskTyped,
+      placeHolderCharacter,
+      shownMaskExpression,
+      showTemplate,
+      clearIfNotMatch,
+      validation,
+      separatorLimit,
+      allowNegativeNumbers,
+      leadZeroDateTime,
+    } = changes;
+    if (maskExpression) {
+      if (maskExpression.currentValue !== maskExpression.previousValue && !maskExpression.firstChange) {
+        this._maskService.maskChanged = true;
+      }
+      this._maskValue = maskExpression.currentValue || '';
+      if (maskExpression.currentValue && maskExpression.currentValue.split('||').length > 1) {
+        this._maskExpressionArray = maskExpression.currentValue
+          .split('||')
+          .sort((a: string, b: string) => a.length - b.length);
+        this._maskValue = this._maskExpressionArray[0];
+        this.maskExpression = this._maskExpressionArray[0];
+        this._maskService.maskExpression = this._maskExpressionArray[0];
+      }
+    }
+    if (specialCharacters) {
+      if (!specialCharacters.currentValue || !Array.isArray(specialCharacters.currentValue)) {
+        return;
+      } else {
+        this._maskService.maskSpecialCharacters = specialCharacters.currentValue || [];
+      }
+    }
+    // Only overwrite the mask available patterns if a pattern has actually been passed in
+    if (patterns && patterns.currentValue) {
+      this._maskService.maskAvailablePatterns = patterns.currentValue;
+    }
+    if (prefix) {
+      this._maskService.prefix = prefix.currentValue;
+    }
+    if (suffix) {
+      this._maskService.suffix = suffix.currentValue;
+    }
+    if (thousandSeparator) {
+      this._maskService.thousandSeparator = thousandSeparator.currentValue;
+    }
+    if (decimalMarker) {
+      this._maskService.decimalMarker = decimalMarker.currentValue;
+    }
+    if (dropSpecialCharacters) {
+      this._maskService.dropSpecialCharacters = dropSpecialCharacters.currentValue;
+    }
+    if (hiddenInput) {
+      this._maskService.hiddenInput = hiddenInput.currentValue;
+    }
+    if (showMaskTyped) {
+      this._maskService.showMaskTyped = showMaskTyped.currentValue;
+    }
+    if (placeHolderCharacter) {
+      this._maskService.placeHolderCharacter = placeHolderCharacter.currentValue;
+    }
+    if (shownMaskExpression) {
+      this._maskService.shownMaskExpression = shownMaskExpression.currentValue;
+    }
+    if (showTemplate) {
+      this._maskService.showTemplate = showTemplate.currentValue;
+    }
+    if (clearIfNotMatch) {
+      this._maskService.clearIfNotMatch = clearIfNotMatch.currentValue;
+    }
+    if (validation) {
+      this._maskService.validation = validation.currentValue;
+    }
+    if (separatorLimit) {
+      this._maskService.separatorLimit = separatorLimit.currentValue;
+    }
+    if (allowNegativeNumbers) {
+      this._maskService.allowNegativeNumbers = allowNegativeNumbers.currentValue;
+      if (this._maskService.allowNegativeNumbers) {
+        this._maskService.maskSpecialCharacters = this._maskService.maskSpecialCharacters.filter(
+          (c: string) => c !== '-'
+        );
+      }
+    }
+    if (leadZeroDateTime) {
+      this._maskService.leadZeroDateTime = leadZeroDateTime.currentValue;
+    }
+    this._applyMask();
+  }
+
+  // eslint-disable-next-line complexity
+  public validate({ value }: FormControl): ValidationErrors | null {
+    if (!this._maskService.validation || !this._maskValue) {
+      return null;
+    }
+    if (this._maskService.ipError) {
+      return this._createValidationError(value);
+    }
+    if (this._maskService.cpfCnpjError) {
+      return this._createValidationError(value);
+    }
+    if (this._maskValue.startsWith('separator')) {
+      return null;
+    }
+    if (withoutValidation.includes(this._maskValue)) {
+      return null;
+    }
+    if (this._maskService.clearIfNotMatch) {
+      return null;
+    }
+    if (timeMasks.includes(this._maskValue)) {
+      return this._validateTime(value);
+    }
+    if (value && value.toString().length >= 1) {
+      let counterOfOpt = 0;
+      for (const key in this._maskService.maskAvailablePatterns) {
+        if (
+          this._maskService.maskAvailablePatterns[key].optional &&
+          this._maskService.maskAvailablePatterns[key].optional === true
+        ) {
+          if (this._maskValue.indexOf(key) !== this._maskValue.lastIndexOf(key)) {
+            const opt: string = this._maskValue
+              .split('')
+              .filter((i: string) => i === key)
+              .join('');
+            counterOfOpt += opt.length;
+          } else if (this._maskValue.indexOf(key) !== -1) {
+            counterOfOpt++;
+          }
+          if (this._maskValue.indexOf(key) !== -1 && value.toString().length >= this._maskValue.indexOf(key)) {
+            return null;
+          }
+          if (counterOfOpt === this._maskValue.length) {
+            return null;
+          }
+        }
+      }
+      if (
+        this._maskValue.indexOf('{') === 1 &&
+        value.toString().length === this._maskValue.length + Number(this._maskValue.split('{')[1].split('}')[0]) - 4
+      ) {
+        return null;
+      }
+      if (this._maskValue.indexOf('*') === 1 || this._maskValue.indexOf('?') === 1) {
+        return null;
+      } else if (
+        (this._maskValue.indexOf('*') > 1 && value.toString().length < this._maskValue.indexOf('*')) ||
+        (this._maskValue.indexOf('?') > 1 && value.toString().length < this._maskValue.indexOf('?')) ||
+        this._maskValue.indexOf('{') === 1
+      ) {
+        return this._createValidationError(value);
+      }
+      if (this._maskValue.indexOf('*') === -1 || this._maskValue.indexOf('?') === -1) {
+        const length: number = this._maskService.dropSpecialCharacters
+          ? this._maskValue.length - this._maskService.checkSpecialCharAmount(this._maskValue) - counterOfOpt
+          : this._maskValue.length - counterOfOpt;
+        if (value.toString().length < length) {
+          return this._createValidationError(value);
+        }
+      }
+    }
+    return null;
   }
 
   /** It writes the value in the input */
@@ -508,7 +509,7 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
             return this._maskService._findSpecialChar(currval) ? accum + currval : accum;
           }
           this._end = index;
-          const repeatNumber: number = Number(maskExp.slice(this._start + 1, this._end));
+          const repeatNumber = Number(maskExp.slice(this._start + 1, this._end));
           const replaceWith: string = new Array(repeatNumber + 1).join(maskExp[this._start - 1]);
           return accum + replaceWith;
         }, '')) ||
@@ -516,7 +517,7 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
     );
   }
 
-  // tslint:disable-next-line:no-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _applyMask(): any {
     this._maskService.maskExpression = this._repeatPatternSymbols(this._maskValue || '');
     this._maskService.formElementProperty = [

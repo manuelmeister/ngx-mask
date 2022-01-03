@@ -42,12 +42,14 @@ export class ShowcaseComponent {
   public dateMonthForm: FormControl;
 
   public pattern: Pattern = {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     P: {
       pattern: new RegExp('\\d'),
     },
   };
 
-  public surnamePattern = { N: { pattern: new RegExp(`[A-Za-z '-]`) } };
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  public surnamePattern = { N: { pattern: new RegExp("[A-Za-z '-]") } };
 
   public numberOrStringFormModel: SN = '';
   public clearIfNotMatchModel: SN = '';

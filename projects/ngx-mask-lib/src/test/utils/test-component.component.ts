@@ -4,7 +4,7 @@ import { FormControl } from '@angular/forms';
 import { IConfig } from '../../lib/config';
 
 @Component({
-  selector: 'mask-test-mask',
+  selector: 'app-mask-test',
   template: `
     <input
       id="maska"

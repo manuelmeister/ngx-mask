@@ -59,7 +59,7 @@ export class MaskApplierService {
     position: number = 0,
     justPasted: boolean = false,
     backspaced: boolean = false,
-    cb: Function = () => {}
+    cb: (shift: number, backspaceShift: boolean) => void = () => {}
   ): string {
     if (inputValue === undefined || inputValue === null || maskExpression === undefined) {
       return '';
@@ -82,9 +82,9 @@ export class MaskApplierService {
       maskExpression = '099.099.099.099';
     }
     const arr: string[] = [];
-    for (let i = 0; i < inputValue.length; i++) {
-      if (inputValue[i].match('\\d')) {
-        arr.push(inputValue[i]);
+    for (const item of inputValue) {
+      if (item.match('\\d')) {
+        arr.push(item);
       }
     }
     if (maskExpression === 'CPF_CNPJ') {
@@ -135,7 +135,7 @@ export class MaskApplierService {
         .replace(thousandSeperatorCharEscaped, '')
         .replace(decimalMarkerEscaped, '');
 
-      const invalidCharRegexp: RegExp = new RegExp('[' + invalidChars + ']');
+      const invalidCharRegexp = new RegExp('[' + invalidChars + ']');
 
       if (inputValue.match(invalidCharRegexp)) {
         inputValue = inputValue.substring(0, inputValue.length - 1);
@@ -170,7 +170,7 @@ export class MaskApplierService {
       }
     } else {
       for (
-        // tslint:disable-next-line
+        // eslint-disable-next-line
         let i: number = 0, inputSymbol: string = inputArray[0];
         i < inputArray.length;
         i++, inputSymbol = inputArray[i]
@@ -421,7 +421,7 @@ export class MaskApplierService {
         res = res.slice(0, separatorLimit.length);
       }
     }
-    const rgx: RegExp = /(\d+)(\d{3})/;
+    const rgx = /(\d+)(\d{3})/;
 
     while (thousandSeparatorChar && rgx.test(res)) {
       res = res.replace(rgx, '$1' + thousandSeparatorChar + '$2');
@@ -435,9 +435,7 @@ export class MaskApplierService {
     return res + decimals.substr(0, precision + 1);
   };
 
-  private percentage = (str: string): boolean => {
-    return Number(str) >= 0 && Number(str) <= 100;
-  };
+  private percentage = (str: string): boolean => Number(str) >= 0 && Number(str) <= 100;
 
   private getPrecision = (maskExpression: string): number => {
     const x: string[] = maskExpression.split('.');
@@ -467,7 +465,7 @@ export class MaskApplierService {
     decimalMarker: IConfig['decimalMarker']
   ): string => {
     if (precision < Infinity) {
-      const precisionRegEx: RegExp = new RegExp(this._charToRegExpExpression(decimalMarker) + `\\d{${precision}}.*$`);
+      const precisionRegEx = new RegExp(this._charToRegExpExpression(decimalMarker) + `\\d{${precision}}.*$`);
 
       const precisionMatch: RegExpMatchArray | null = inputValue.match(precisionRegEx);
       if (precisionMatch && precisionMatch[0].length - 1 > precision) {
@@ -484,15 +482,9 @@ export class MaskApplierService {
   private _stripToDecimal(str: string): string {
     return str
       .split('')
-      .filter((i: string, idx: number) => {
-        return (
-          i.match('^-?\\d') ||
-          i.match('\\s') ||
-          i === '.' ||
-          i === ',' ||
-          (i === '-' && idx === 0 && this.allowNegativeNumbers)
-        );
-      })
+      .filter(
+        (i: string, idx: number) => i.match('\\d|\\s|\\.|\\,') || (i === '-' && idx === 0 && this.allowNegativeNumbers)
+      )
       .join('');
   }
 

@@ -1,5 +1,5 @@
-// tslint:disable: no-any typedef
-declare var global: any;
+/* eslint-disable @typescript-eslint/no-explicit-any */
+declare let global: any;
 
 const commonjsGlobal =
   typeof globalThis !== 'undefined'
@@ -14,7 +14,7 @@ const commonjsGlobal =
 
 (function () {
   if (!commonjsGlobal.KeyboardEvent) {
-    commonjsGlobal.KeyboardEvent = function (_eventType: any, _init: any) {};
+    commonjsGlobal.KeyboardEvent = (_eventType: any, _init: any) => {};
   }
 })();
 

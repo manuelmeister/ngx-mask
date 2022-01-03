@@ -22,6 +22,7 @@ describe('Directive: Mask (Custom patterns)', () => {
   it('custom patterns', () => {
     component.mask = 'FFF';
     component.patterns = {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       F: {
         pattern: new RegExp('[0-9]'),
       },

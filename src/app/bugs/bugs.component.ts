@@ -1,11 +1,11 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { Subject } from 'rxjs';
 
 @Component({
   templateUrl: './bugs.component.html',
 })
-export class BugsComponent implements OnInit, OnDestroy {
+export class BugsComponent implements OnDestroy {
   public bugsForm: FormGroup;
   public submitted: boolean = false;
 
@@ -14,12 +14,12 @@ export class BugsComponent implements OnInit, OnDestroy {
 
   public constructor(private formBuilder: FormBuilder) {
     this.bugsForm = this.formBuilder.group({
-      MonStart: [],
-      PrePopulate: [123456],
-      DecMarkerComma: [],
-      DecMarkerDot: [],
-      CorrectRemovingSpace: [1200300.99],
-      SecureInput: [987654321],
+      monStart: [],
+      prePopulate: [123456],
+      decMarkerComma: [],
+      decMarkerDot: [],
+      correctRemovingSpace: [1200300.99],
+      secureInput: [987654321],
     });
   }
 
@@ -28,15 +28,13 @@ export class BugsComponent implements OnInit, OnDestroy {
     this.onDestroy$.complete();
   }
 
-  ngOnInit(): void {}
-
   submitForm(): void {
     this.submitted = true;
   }
 
   resetForm(): void {
     this.bugsForm.reset({
-      PrePopulate: 2000,
+      prePopulate: 2000,
     });
     this.submitted = false;
   }
