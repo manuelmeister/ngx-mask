@@ -289,7 +289,6 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
       if (maskExpression.currentValue !== maskExpression.previousValue && !maskExpression.firstChange) {
         this._maskService.maskChanged = true;
       }
-      this._maskValue = maskExpression.currentValue || '';
       if (maskExpression.currentValue && maskExpression.currentValue.split('||').length > 1) {
         this._maskExpressionArray = maskExpression.currentValue
           .split('||')
@@ -297,6 +296,10 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
         this._maskValue = this._maskExpressionArray[0];
         this.maskExpression = this._maskExpressionArray[0];
         this._maskService.maskExpression = this._maskExpressionArray[0];
+      } else {
+        this._maskExpressionArray = [];
+        this._maskValue = maskExpression.currentValue || '';
+        this._maskService.maskExpression = this._maskValue;
       }
     }
     if (specialCharacters) {
