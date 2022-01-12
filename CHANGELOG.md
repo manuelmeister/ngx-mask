@@ -1,3 +1,25 @@
+<a name="12.1.2"></a>
+
+# 12.1.2 (2022-01-20)
+
+### Fixes
+
+- Revision for separator logic.
+- Set default decimalMarker to [".",","] instead "."
+
+<a name="12.1.0"></a>
+
+# 12.1.0 (2021-12-30)
+
+### Features
+
+- Enable non-zero-selections
+- Deletion of special mask character moves just the cursor instead of deleting the character next to it
+
+### Test/CI fixes
+
+- Enable cypress component testing
+
 <a name="11.1.6"></a>
 
 # 11.1.6 (2021-04-22)
@@ -5,6 +27,9 @@
 ### Bug Fixes
 
 Fixed ([#875](https://github.com/JsDaddy/ngx-mask/issues/875))
+Fixed ([#892](https://github.com/JsDaddy/ngx-mask/issues/892))
+Fixed ([#861](https://github.com/JsDaddy/ngx-mask/issues/861))
+Fixed ([#893](https://github.com/JsDaddy/ngx-mask/issues/893))
 
 <a name="11.1.5"></a>
 
