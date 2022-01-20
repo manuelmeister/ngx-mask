@@ -4,7 +4,7 @@ import { FormControl } from '@angular/forms';
 import { IConfig } from '../../lib/config';
 
 @Component({
-  selector: 'mask-test-mask',
+  selector: 'app-mask-test',
   template: `
     <input
       id="maska"
@@ -24,6 +24,7 @@ import { IConfig } from '../../lib/config';
       [hiddenInput]="hiddenInput"
       [allowNegativeNumbers]="allowNegativeNumbers"
       [leadZeroDateTime]="leadZeroDateTime"
+      [triggerOnMaskChange]="triggerOnMaskChange"
     />
   `,
 })
@@ -44,4 +45,5 @@ export class TestMaskComponent {
   public separatorLimit: IConfig['separatorLimit'] = '';
   public allowNegativeNumbers: IConfig['allowNegativeNumbers'] = false;
   public leadZeroDateTime: IConfig['leadZeroDateTime'] = false;
+  public triggerOnMaskChange: IConfig['triggerOnMaskChange'] = false;
 }

@@ -7,20 +7,32 @@
       "root": "",
       "sourceRoot": "src",
       "projectType": "application",
+      "prefix": "app",
       "schematics": {},
       "architect": {
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
-            "aot": true,
             "outputPath": "dist/showcase",
             "index": "src/index.html",
             "main": "src/main.ts",
             "polyfills": "src/polyfills.ts",
             "tsConfig": "src/tsconfig.app.json",
-            "assets": ["src/assets", "src/favicon.ico"],
-            "styles": ["node_modules/bootstrap/dist/css/bootstrap-grid.min.css", "src/styles.scss"],
-            "scripts": []
+            "assets": [
+              "src/assets",
+              "src/favicon.ico"
+            ],
+            "styles": [
+              "node_modules/bootstrap/dist/css/bootstrap-grid.min.css",
+              "src/styles.scss"
+            ],
+            "scripts": [],
+            "vendorChunk": true,
+            "extractLicenses": false,
+            "buildOptimizer": false,
+            "sourceMap": true,
+            "optimization": false,
+            "namedChunks": true
           },
           "configurations": {
             "production": {
@@ -34,7 +46,6 @@
               "outputHashing": "all",
               "sourceMap": false,
               "namedChunks": false,
-              "aot": true,
               "extractLicenses": true,
               "vendorChunk": false,
               "buildOptimizer": true,
@@ -45,7 +56,8 @@
                 }
               ]
             }
-          }
+          },
+          "defaultConfiguration": ""
         },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
@@ -74,30 +86,31 @@
             "codeCoverage": true,
             "sourceMap": true,
             "scripts": [],
-            "styles": ["node_modules/bootstrap/dist/css/bootstrap-grid.css", "src/styles.scss"],
-            "assets": ["src/assets", "src/favicon.ico"]
+            "styles": [
+              "node_modules/bootstrap/dist/css/bootstrap-grid.css",
+              "src/styles.scss"
+            ],
+            "assets": [
+              "src/assets",
+              "src/favicon.ico"
+            ]
           }
         },
         "lint": {
-          "builder": "@angular-devkit/build-angular:tslint",
+          "builder": "@angular-eslint/builder:lint",
           "options": {
-            "tsConfig": ["src/tsconfig.app.json", "src/tsconfig.spec.json"],
-            "format": "stylish",
-            "exclude": ["**/node_modules/**"]
+            "lintFilePatterns": [
+              "src/**/*.ts",
+              "src/**/*.html"
+            ]
           }
         }
       }
-    },
-    "showcase-e2e": {
-      "root": "",
-      "sourceRoot": "",
-      "projectType": "application"
     },
     "ngx-mask-lib": {
       "root": "projects/ngx-mask-lib",
       "sourceRoot": "projects/ngx-mask-lib/src",
       "projectType": "library",
-      "prefix": "app",
       "architect": {
         "build": {
           "builder": "@angular-devkit/build-angular:ng-packagr",
@@ -124,11 +137,20 @@
           }
         },
         "lint": {
-          "builder": "@angular-devkit/build-angular:tslint",
+          "builder": "@angular-eslint/builder:lint",
           "options": {
-            "tsConfig": ["projects/ngx-mask-lib/tsconfig.lib.json", "projects/ngx-mask-lib/tsconfig.spec.json"],
-            "format": "stylish",
-            "exclude": ["**/node_modules/**"]
+            "lintFilePatterns": [
+              "projects/ngx-mask-lib/**/*.ts",
+              "projects/ngx-mask-lib/**/*.html"
+            ]
+          }
+        },
+        "ct": {
+          "builder": "@nrwl/cypress:cypress",
+          "options": {
+            "cypressConfig": "projects/ngx-mask-lib/cypress.json",
+            "tsConfig": "projects/ngx-mask-lib/tsconfig.cypress.json",
+            "testingType": "component"
           }
         }
       }
@@ -139,7 +161,8 @@
     "warnings": {
       "typescriptMismatch": false
     },
-    "analytics": "682218d2-280d-47b1-b385-b2c8c903f9a9"
+    "analytics": "682218d2-280d-47b1-b385-b2c8c903f9a9",
+    "defaultCollection": "@angular-eslint/schematics"
   },
   "schematics": {
     "@schematics/angular:component": {

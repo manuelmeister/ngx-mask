@@ -13,9 +13,8 @@ import { CustomKeyboardEvent } from './custom-keyboard-event';
 import { config, IConfig, timeMasks, withoutValidation } from './config';
 import { MaskService } from './mask.service';
 
-// tslint:disable deprecation
-// tslint:disable no-input-rename
 @Directive({
+  // eslint-disable-next-line @angular-eslint/directive-selector
   selector: 'input[mask], textarea[mask]',
   providers: [
     {
@@ -32,6 +31,7 @@ import { MaskService } from './mask.service';
   ],
 })
 export class MaskDirective implements ControlValueAccessor, OnChanges, Validator {
+  // eslint-disable-next-line @angular-eslint/no-input-rename
   @Input('mask') public maskExpression: string = '';
   @Input() public specialCharacters: IConfig['specialCharacters'] = [];
   @Input() public patterns: IConfig['patterns'] = {};
@@ -50,6 +50,8 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
   @Input() public separatorLimit: IConfig['separatorLimit'] | null = null;
   @Input() public allowNegativeNumbers: IConfig['allowNegativeNumbers'] | null = null;
   @Input() public leadZeroDateTime: IConfig['leadZeroDateTime'] | null = null;
+  @Input() public triggerOnMaskChange: IConfig['triggerOnMaskChange'] | null = null;
+
   private _maskValue: string = '';
   private _inputValue!: string;
   private _position: number | null = null;
@@ -61,9 +63,205 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
 
   public constructor(
     @Inject(DOCUMENT) private document: any,
-    private _maskService: MaskService,
+    public _maskService: MaskService,
     @Inject(config) protected _config: IConfig
   ) {}
+
+  @HostListener('blur')
+  public onBlur(): void {
+    if (this._maskValue) {
+      this._maskService.clearIfNotMatchFn();
+    }
+    this.onTouch();
+  }
+
+  @HostListener('click', ['$event'])
+  public onClick(e: MouseEvent | CustomKeyboardEvent): void {
+    if (!this._maskValue) {
+      return;
+    }
+    const el: HTMLInputElement = e.target as HTMLInputElement;
+    const posStart = 0;
+    const posEnd = 0;
+    if (
+      el !== null &&
+      el.selectionStart !== null &&
+      el.selectionStart === el.selectionEnd &&
+      el.selectionStart > this._maskService.prefix.length &&
+      // eslint-disable-next-line
+      (e as any).keyCode !== 38
+    ) {
+      if (this._maskService.showMaskTyped) {
+        // We are showing the mask in the input
+        this._maskService.maskIsShown = this._maskService.showMaskInInput();
+        if (el.setSelectionRange && this._maskService.prefix + this._maskService.maskIsShown === el.value) {
+          // the input ONLY contains the mask, so position the cursor at the start
+          el.focus();
+          el.setSelectionRange(posStart, posEnd);
+        } else {
+          // the input contains some characters already
+          if (el.selectionStart > this._maskService.actualValue.length) {
+            // if the user clicked beyond our value's length, position the cursor at the end of our value
+            el.setSelectionRange(this._maskService.actualValue.length, this._maskService.actualValue.length);
+          }
+        }
+      }
+    }
+    const nextValue: string | null =
+      !el.value || el.value === this._maskService.prefix
+        ? this._maskService.prefix + this._maskService.maskIsShown
+        : el.value;
+
+    /** Fix of cursor position jumping to end in most browsers no matter where cursor is inserted onFocus */
+    if (el.value !== nextValue) {
+      el.value = nextValue;
+    }
+
+    /** fix of cursor position with prefix when mouse click occur */
+    if (((el.selectionStart as number) || (el.selectionEnd as number)) <= this._maskService.prefix.length) {
+      el.selectionStart = this._maskService.prefix.length;
+      return;
+    }
+
+    /** select only inserted text */
+    if ((el.selectionEnd as number) > this._getActualInputLength()) {
+      el.selectionEnd = this._getActualInputLength();
+    }
+  }
+
+  @HostListener('input', ['$event'])
+  public onInput(e: CustomKeyboardEvent): void {
+    const el: HTMLInputElement = e.target as HTMLInputElement;
+    this._inputValue = el.value;
+
+    this._setMask();
+
+    if (!this._maskValue) {
+      this.onChange(el.value);
+      return;
+    }
+    const position: number =
+      el.selectionStart === 1
+        ? (el.selectionStart as number) + this._maskService.prefix.length
+        : (el.selectionStart as number);
+    let caretShift = 0;
+    let backspaceShift = false;
+    this._maskService.applyValueChanges(
+      position,
+      this._justPasted,
+      this._code === 'Backspace' || this._code === 'Delete',
+      (shift: number, _backspaceShift: boolean) => {
+        this._justPasted = false;
+        caretShift = shift;
+        backspaceShift = _backspaceShift;
+      }
+    );
+    // only set the selection if the element is active
+    if (this.document.activeElement !== el) {
+      return;
+    }
+    this._position = this._position === 1 && this._inputValue.length === 1 ? null : this._position;
+    let positionToApply: number = this._position
+      ? this._inputValue.length + position + caretShift
+      : position + (this._code === 'Backspace' && !backspaceShift ? 0 : caretShift);
+    if (positionToApply > this._getActualInputLength()) {
+      positionToApply = this._getActualInputLength();
+    }
+    if (positionToApply < 0) {
+      positionToApply = 0;
+    }
+    el.setSelectionRange(positionToApply, positionToApply);
+    this._position = null;
+  }
+
+  // eslint-disable-next-line complexity
+  @HostListener('keydown', ['$event'])
+  public onKeyDown(e: CustomKeyboardEvent): void {
+    if (!this._maskValue) {
+      return;
+    }
+    this._code = e.code ? e.code : e.key;
+    const el: HTMLInputElement = e.target as HTMLInputElement;
+    this._inputValue = el.value;
+
+    this._setMask();
+
+    if (e.keyCode === 38) {
+      e.preventDefault();
+    }
+    if (e.keyCode === 37 || e.keyCode === 8 || e.keyCode === 46) {
+      if (e.keyCode === 8 && el.value.length === 0) {
+        el.selectionStart = el.selectionEnd;
+      }
+      if (e.keyCode === 8 && (el.selectionStart as number) !== 0) {
+        // If specialChars is false, (shouldn't ever happen) then set to the defaults
+        this.specialCharacters = this.specialCharacters?.length
+          ? this.specialCharacters
+          : this._config.specialCharacters;
+        if (this.prefix.length > 1 && (el.selectionStart as number) <= this.prefix.length) {
+          el.setSelectionRange(this.prefix.length, el.selectionEnd);
+        } else {
+          if (this._inputValue.length !== (el.selectionStart as number) && (el.selectionStart as number) !== 1) {
+            while (
+              this.specialCharacters.includes(this._inputValue[(el.selectionStart as number) - 1].toString()) &&
+              ((this.prefix.length >= 1 && (el.selectionStart as number) > this.prefix.length) ||
+                this.prefix.length === 0)
+            ) {
+              el.setSelectionRange((el.selectionStart as number) - 1, el.selectionEnd);
+            }
+          }
+        }
+      }
+      this.checkSelectionOnDeletion(el);
+      if (
+        this._maskService.prefix.length &&
+        (el.selectionStart as number) <= this._maskService.prefix.length &&
+        (el.selectionEnd as number) <= this._maskService.prefix.length
+      ) {
+        e.preventDefault();
+      }
+      const cursorStart: number | null = el.selectionStart;
+      // this.onFocus(e);
+      if (
+        e.keyCode === 8 &&
+        !el.readOnly &&
+        cursorStart === 0 &&
+        el.selectionEnd === el.value.length &&
+        el.value.length !== 0
+      ) {
+        this._position = this._maskService.prefix ? this._maskService.prefix.length : 0;
+        this._maskService.applyMask(this._maskService.prefix, this._maskService.maskExpression, this._position);
+      }
+    }
+    if (
+      !!this.suffix &&
+      this.suffix.length > 1 &&
+      this._inputValue.length - this.suffix.length < (el.selectionStart as number)
+    ) {
+      el.setSelectionRange(this._inputValue.length - this.suffix.length, this._inputValue.length);
+    } else if (
+      (e.keyCode === 65 && e.ctrlKey === true) || // Ctrl+ A
+      (e.keyCode === 65 && e.metaKey === true) // Cmd + A (Mac)
+    ) {
+      el.setSelectionRange(0, this._getActualInputLength());
+      e.preventDefault();
+    }
+    this._maskService.selStart = el.selectionStart;
+    this._maskService.selEnd = el.selectionEnd;
+  }
+
+  @HostListener('ngModelChange', ['$event'])
+  public onModelChange(value: any): void {
+    // on form reset we need to update the actualValue
+    if (!value && this._maskService.actualValue) {
+      this._maskService.actualValue = this._maskService.getActualValue('');
+    }
+  }
+
+  @HostListener('paste')
+  public onPaste() {
+    this._justPasted = true;
+  }
 
   public onChange = (_: any) => {};
   public onTouch = () => {};
@@ -88,19 +286,23 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
       separatorLimit,
       allowNegativeNumbers,
       leadZeroDateTime,
+      triggerOnMaskChange,
     } = changes;
     if (maskExpression) {
       if (maskExpression.currentValue !== maskExpression.previousValue && !maskExpression.firstChange) {
         this._maskService.maskChanged = true;
       }
-      this._maskValue = maskExpression.currentValue || '';
       if (maskExpression.currentValue && maskExpression.currentValue.split('||').length > 1) {
-        this._maskExpressionArray = maskExpression.currentValue.split('||').sort((a: string, b: string) => {
-          return a.length - b.length;
-        });
+        this._maskExpressionArray = maskExpression.currentValue
+          .split('||')
+          .sort((a: string, b: string) => a.length - b.length);
         this._maskValue = this._maskExpressionArray[0];
         this.maskExpression = this._maskExpressionArray[0];
         this._maskService.maskExpression = this._maskExpressionArray[0];
+      } else {
+        this._maskExpressionArray = [];
+        this._maskValue = maskExpression.currentValue || '';
+        this._maskService.maskExpression = this._maskValue;
       }
     }
     if (specialCharacters) {
@@ -164,10 +366,13 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
     if (leadZeroDateTime) {
       this._maskService.leadZeroDateTime = leadZeroDateTime.currentValue;
     }
+    if (triggerOnMaskChange) {
+      this._maskService.triggerOnMaskChange = triggerOnMaskChange.currentValue;
+    }
     this._applyMask();
   }
 
-  // tslint:disable-next-line: cyclomatic-complexity
+  // eslint-disable-next-line complexity
   public validate({ value }: FormControl): ValidationErrors | null {
     if (!this._maskService.validation || !this._maskValue) {
       return null;
@@ -240,194 +445,6 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
     }
     return null;
   }
-  @HostListener('paste')
-  public onPaste() {
-    this._justPasted = true;
-  }
-
-  @HostListener('input', ['$event'])
-  public onInput(e: CustomKeyboardEvent): void {
-    const el: HTMLInputElement = e.target as HTMLInputElement;
-    this._inputValue = el.value;
-
-    this._setMask();
-
-    if (!this._maskValue) {
-      this.onChange(el.value);
-      return;
-    }
-    const position: number =
-      el.selectionStart === 1
-        ? (el.selectionStart as number) + this._maskService.prefix.length
-        : (el.selectionStart as number);
-    let caretShift = 0;
-    let backspaceShift = false;
-    this._maskService.applyValueChanges(
-      position,
-      this._justPasted,
-      this._code === 'Backspace' || this._code === 'Delete',
-      (shift: number, _backspaceShift: boolean) => {
-        this._justPasted = false;
-        caretShift = shift;
-        backspaceShift = _backspaceShift;
-      }
-    );
-    // only set the selection if the element is active
-    if (this.document.activeElement !== el) {
-      return;
-    }
-    this._position = this._position === 1 && this._inputValue.length === 1 ? null : this._position;
-    let positionToApply: number = this._position
-      ? this._inputValue.length + position + caretShift
-      : position + (this._code === 'Backspace' && !backspaceShift ? 0 : caretShift);
-    if (positionToApply > this._getActualInputLength()) {
-      positionToApply = this._getActualInputLength();
-    }
-    if (positionToApply < 0) {
-      positionToApply = 0;
-    }
-    el.setSelectionRange(positionToApply, positionToApply);
-    this._position = null;
-  }
-
-  @HostListener('blur')
-  public onBlur(): void {
-    if (this._maskValue) {
-      this._maskService.clearIfNotMatchFn();
-    }
-    this.onTouch();
-  }
-
-  @HostListener('click', ['$event'])
-  public onFocus(e: MouseEvent | CustomKeyboardEvent): void {
-    if (!this._maskValue) {
-      return;
-    }
-    const el: HTMLInputElement = e.target as HTMLInputElement;
-    const posStart = 0;
-    const posEnd = 0;
-    if (
-      el !== null &&
-      el.selectionStart !== null &&
-      el.selectionStart === el.selectionEnd &&
-      el.selectionStart > this._maskService.prefix.length &&
-      // tslint:disable-next-line
-      (e as any).keyCode !== 38
-    ) {
-      if (this._maskService.showMaskTyped) {
-        // We are showing the mask in the input
-        this._maskService.maskIsShown = this._maskService.showMaskInInput();
-        if (el.setSelectionRange && this._maskService.prefix + this._maskService.maskIsShown === el.value) {
-          // the input ONLY contains the mask, so position the cursor at the start
-          el.focus();
-          el.setSelectionRange(posStart, posEnd);
-        } else {
-          // the input contains some characters already
-          if (el.selectionStart > this._maskService.actualValue.length) {
-            // if the user clicked beyond our value's length, position the cursor at the end of our value
-            el.setSelectionRange(this._maskService.actualValue.length, this._maskService.actualValue.length);
-          }
-        }
-      }
-    }
-    const nextValue: string | null =
-      !el.value || el.value === this._maskService.prefix
-        ? this._maskService.prefix + this._maskService.maskIsShown
-        : el.value;
-
-    /** Fix of cursor position jumping to end in most browsers no matter where cursor is inserted onFocus */
-    if (el.value !== nextValue) {
-      el.value = nextValue;
-    }
-
-    /** fix of cursor position with prefix when mouse click occur */
-    if (((el.selectionStart as number) || (el.selectionEnd as number)) <= this._maskService.prefix.length) {
-      el.selectionStart = this._maskService.prefix.length;
-      return;
-    }
-
-    /** select only inserted text */
-    if ((el.selectionEnd as number) > this._getActualInputLength()) {
-      el.selectionEnd = this._getActualInputLength();
-    }
-  }
-
-  // tslint:disable-next-line: cyclomatic-complexity
-  @HostListener('keydown', ['$event'])
-  public onKeyDown(e: CustomKeyboardEvent): void {
-    if (!this._maskValue) {
-      return;
-    }
-    this._code = e.code ? e.code : e.key;
-    const el: HTMLInputElement = e.target as HTMLInputElement;
-    this._inputValue = el.value;
-
-    this._setMask();
-
-    if (e.keyCode === 38) {
-      e.preventDefault();
-    }
-    if (e.keyCode === 37 || e.keyCode === 8 || e.keyCode === 46) {
-      if (e.keyCode === 8 && el.value.length === 0) {
-        el.selectionStart = el.selectionEnd;
-      }
-      if (e.keyCode === 8 && (el.selectionStart as number) !== 0) {
-        // If specialChars is false, (shouldn't ever happen) then set to the defaults
-        this.specialCharacters = this.specialCharacters?.length
-          ? this.specialCharacters
-          : this._config.specialCharacters;
-        if (this.prefix.length > 1 && (el.selectionStart as number) <= this.prefix.length) {
-          el.setSelectionRange(this.prefix.length, this.prefix.length);
-        } else {
-          if (this._inputValue.length !== (el.selectionStart as number) && (el.selectionStart as number) !== 1) {
-            while (
-              this.specialCharacters.includes(this._inputValue[(el.selectionStart as number) - 1].toString()) &&
-              ((this.prefix.length >= 1 && (el.selectionStart as number) > this.prefix.length) ||
-                this.prefix.length === 0)
-            ) {
-              el.setSelectionRange((el.selectionStart as number) - 1, (el.selectionStart as number) - 1);
-            }
-          }
-          this.suffixCheckOnPressDelete(e.keyCode, el);
-        }
-      }
-      this.suffixCheckOnPressDelete(e.keyCode, el);
-      if (
-        this._maskService.prefix.length &&
-        (el.selectionStart as number) <= this._maskService.prefix.length &&
-        (el.selectionEnd as number) <= this._maskService.prefix.length
-      ) {
-        e.preventDefault();
-      }
-      const cursorStart: number | null = el.selectionStart;
-      // this.onFocus(e);
-      if (
-        e.keyCode === 8 &&
-        !el.readOnly &&
-        cursorStart === 0 &&
-        el.selectionEnd === el.value.length &&
-        el.value.length !== 0
-      ) {
-        this._position = this._maskService.prefix ? this._maskService.prefix.length : 0;
-        this._maskService.applyMask(this._maskService.prefix, this._maskService.maskExpression, this._position);
-      }
-    }
-    if (
-      !!this.suffix &&
-      this.suffix.length > 1 &&
-      this._inputValue.length - this.suffix.length < (el.selectionStart as number)
-    ) {
-      el.setSelectionRange(this._inputValue.length - this.suffix.length, this._inputValue.length);
-    } else if (
-      (e.keyCode === 65 && e.ctrlKey === true) || // Ctrl+ A
-      (e.keyCode === 65 && e.metaKey === true) // Cmd + A (Mac)
-    ) {
-      el.setSelectionRange(0, this._getActualInputLength());
-      e.preventDefault();
-    }
-    this._maskService.selStart = el.selectionStart;
-    this._maskService.selEnd = el.selectionEnd;
-  }
 
   /** It writes the value in the input */
   public async writeValue(inputValue: string | number | { value: string | number; disable?: boolean }): Promise<void> {
@@ -438,13 +455,16 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
       inputValue = inputValue.value;
     }
 
-    if (inputValue === undefined) {
-      inputValue = '';
-    }
     if (typeof inputValue === 'number') {
       inputValue = String(inputValue);
-      inputValue = this.decimalMarker !== '.' ? inputValue.replace('.', this.decimalMarker) : inputValue;
+      if (!Array.isArray(this.decimalMarker)) {
+        inputValue = this.decimalMarker !== '.' ? inputValue.replace('.', this.decimalMarker) : inputValue;
+      }
       this._maskService.isNumberValue = true;
+    }
+
+    if (typeof inputValue !== 'string') {
+      inputValue = '';
     }
 
     this._inputValue = inputValue;
@@ -477,20 +497,15 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
     this.onTouch = fn;
   }
 
-  public suffixCheckOnPressDelete(keyCode: number, el: HTMLInputElement): void {
-    if (keyCode === 46 && this.suffix.length > 0) {
-      if (this._inputValue.length - this.suffix.length <= (el.selectionStart as number)) {
-        el.setSelectionRange(this._inputValue.length - this.suffix.length, this._inputValue.length);
-      }
-    }
-    if (keyCode === 8) {
-      if (this.suffix.length > 1 && this._inputValue.length - this.suffix.length < (el.selectionStart as number)) {
-        el.setSelectionRange(this._inputValue.length - this.suffix.length, this._inputValue.length);
-      }
-      if (this.suffix.length === 1 && this._inputValue.length === (el.selectionStart as number)) {
-        el.setSelectionRange((el.selectionStart as number) - 1, (el.selectionStart as number) - 1);
-      }
-    }
+  public checkSelectionOnDeletion(el: HTMLInputElement): void {
+    el.selectionStart = Math.min(
+      Math.max(this.prefix.length, el.selectionStart as number),
+      this._inputValue.length - this.suffix.length
+    );
+    el.selectionEnd = Math.min(
+      Math.max(this.prefix.length, el.selectionEnd as number),
+      this._inputValue.length - this.suffix.length
+    );
   }
 
   /** It disables the input element */
@@ -508,7 +523,7 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
             return this._maskService._findSpecialChar(currval) ? accum + currval : accum;
           }
           this._end = index;
-          const repeatNumber: number = Number(maskExp.slice(this._start + 1, this._end));
+          const repeatNumber = Number(maskExp.slice(this._start + 1, this._end));
           const replaceWith: string = new Array(repeatNumber + 1).join(maskExp[this._start - 1]);
           return accum + replaceWith;
         }, '')) ||
@@ -516,7 +531,7 @@ export class MaskDirective implements ControlValueAccessor, OnChanges, Validator
     );
   }
 
-  // tslint:disable-next-line:no-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _applyMask(): any {
     this._maskService.maskExpression = this._repeatPatternSymbols(this._maskValue || '');
     this._maskService.formElementProperty = [

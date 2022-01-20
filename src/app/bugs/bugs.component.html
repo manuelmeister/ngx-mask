@@ -19,7 +19,7 @@
   <div class="container box">
     <div class="row">
       <div class="col-12">
-        <label for="MonStart">Time validation test</label>
+        <label for="monStart">Time validation test</label>
         <div>
           <p>
             <input
@@ -27,14 +27,14 @@
               [showMaskTyped]="true"
               [dropSpecialCharacters]="false"
               mask="Hh:m0"
-              formControlName="MonStart"
-              id="MonStart"
+              formControlName="monStart"
+              id="monStart"
             />
           </p>
           <p>
-            Valid: {{ bugsForm.controls.MonStart.valid }}<br />
-            Value: {{ bugsForm.controls.MonStart.value }}<br />
-            Errors: {{ bugsForm.controls.MonStart.errors | json }}
+            Valid: {{ bugsForm.controls.monStart.valid }}<br />
+            Value: {{ bugsForm.controls.monStart.value }}<br />
+            Errors: {{ bugsForm.controls.monStart.errors | json }}
           </p>
         </div>
       </div>
@@ -51,14 +51,14 @@
               type="text"
               mask="separator.2"
               [thousandSeparator]="','"
-              formControlName="PrePopulate"
+              formControlName="prePopulate"
               id="PrePopulate"
             />
           </p>
           <p>
-            Valid: {{ bugsForm.controls.PrePopulate.valid }}<br />
-            Value: {{ bugsForm.controls.PrePopulate.value }}<br />
-            Errors: {{ bugsForm.controls.PrePopulate.errors | json }}
+            Valid: {{ bugsForm.controls.prePopulate.valid }}<br />
+            Value: {{ bugsForm.controls.prePopulate.value }}<br />
+            Errors: {{ bugsForm.controls.prePopulate.errors | json }}
           </p>
         </div>
       </div>
@@ -75,14 +75,14 @@
               mask="separator.2"
               thousandSeparator="."
               decimalMarker=","
-              formControlName="DecMarkerComma"
+              formControlName="decMarkerComma"
               id="DecMarkerComma"
             />
           </p>
           <p>
-            Valid: {{ bugsForm.controls.DecMarkerComma.valid }}<br />
-            Value: {{ bugsForm.controls.DecMarkerComma.value }}<br />
-            Errors: {{ bugsForm.controls.DecMarkerComma.errors | json }}
+            Valid: {{ bugsForm.controls.decMarkerComma.valid }}<br />
+            Value: {{ bugsForm.controls.decMarkerComma.value }}<br />
+            Errors: {{ bugsForm.controls.decMarkerComma.errors | json }}
           </p>
         </div>
       </div>
@@ -100,14 +100,14 @@
               mask="separator.2"
               thousandSeparator=","
               decimalMarker="."
-              formControlName="DecMarkerDot"
+              formControlName="decMarkerDot"
               id="DecMarkerDot"
             />
           </p>
           <p>
-            Valid: {{ bugsForm.controls.DecMarkerDot.valid }}<br />
-            Value: {{ bugsForm.controls.DecMarkerDot.value }}<br />
-            Errors: {{ bugsForm.controls.DecMarkerDot.errors | json }}
+            Valid: {{ bugsForm.controls.decMarkerDot.valid }}<br />
+            Value: {{ bugsForm.controls.decMarkerDot.value }}<br />
+            Errors: {{ bugsForm.controls.decMarkerDot.errors | json }}
           </p>
         </div>
       </div>
@@ -125,14 +125,14 @@
               mask="separator.2"
               thousandSeparator=" "
               suffix="$"
-              formControlName="CorrectRemovingSpace"
+              formControlName="correctRemovingSpace"
               id="CorrectRemovingSpace"
             />
           </p>
           <p>
-            Valid: {{ bugsForm.controls.CorrectRemovingSpace.valid }}<br />
-            Value: {{ bugsForm.controls.CorrectRemovingSpace.value }}<br />
-            Errors: {{ bugsForm.controls.CorrectRemovingSpace.errors | json }}
+            Valid: {{ bugsForm.controls.correctRemovingSpace.valid }}<br />
+            Value: {{ bugsForm.controls.correctRemovingSpace.value }}<br />
+            Errors: {{ bugsForm.controls.correctRemovingSpace.errors | json }}
           </p>
         </div>
       </div>
@@ -149,15 +149,15 @@
               type="text"
               placeholder="Secure input"
               [hiddenInput]="true"
-              mask="XXX-X0-0000"
-              formControlName="SecureInput"
+              [mask]="mask"
+              formControlName="secureInput"
               id="SecureInput"
             />
           </p>
           <p>
-            Valid: {{ bugsForm.controls.SecureInput.valid }}<br />
-            Value: {{ bugsForm.controls.SecureInput.value }}<br />
-            Errors: {{ bugsForm.controls.SecureInput.errors | json }}
+            Valid: {{ bugsForm.controls.secureInput.valid }}<br />
+            Value: {{ bugsForm.controls.secureInput.value }}<br />
+            Errors: {{ bugsForm.controls.secureInput.errors | json }}
           </p>
         </div>
       </div>

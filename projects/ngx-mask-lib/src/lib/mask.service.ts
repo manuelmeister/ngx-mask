@@ -20,7 +20,7 @@ export class MaskService extends MaskApplierService {
   public writingValue: boolean = false;
   public maskChanged: boolean = false;
 
-  public onChange = (_: any) => {};
+  public triggerOnMaskChange: boolean = false;
 
   public constructor(
     @Inject(DOCUMENT) private document: any,
@@ -31,14 +31,16 @@ export class MaskService extends MaskApplierService {
     super(_config);
   }
 
-  // tslint:disable-next-line:cyclomatic-complexity
+  public onChange = (_: any) => {};
+
+  // eslint-disable-next-line complexity
   public applyMask(
     inputValue: string,
     maskExpression: string,
     position: number = 0,
     justPasted = false,
     backspaced = false,
-    cb: Function = () => {}
+    cb: (shift: number, backspaceShift: boolean) => void = () => {}
   ): string {
     if (!maskExpression) {
       return inputValue;
@@ -58,19 +60,26 @@ export class MaskService extends MaskApplierService {
     let newInputValue = '';
     if (this.hiddenInput && !this.writingValue) {
       let actualResult: string[] = this.actualValue.split('');
-      // tslint:disable no-unused-expression
-      inputValue !== '' && actualResult.length
-        ? typeof this.selStart === 'number' && typeof this.selEnd === 'number'
-          ? inputValue.length > actualResult.length
-            ? actualResult.splice(this.selStart, 0, getSymbol)
-            : inputValue.length < actualResult.length
-            ? actualResult.length - inputValue.length === 1
-              ? actualResult.splice(this.selStart - 1, 1)
-              : actualResult.splice(this.selStart, this.selEnd - this.selStart)
-            : null
-          : null
-        : (actualResult = []);
-      // tslint:enable no-unused-expression
+      if (inputValue !== '' && actualResult.length) {
+        if (typeof this.selStart === 'number' && typeof this.selEnd === 'number') {
+          if (inputValue.length > actualResult.length) {
+            actualResult.splice(this.selStart, 0, getSymbol);
+          } else {
+            if (inputValue.length < actualResult.length) {
+              if (actualResult.length - inputValue.length === 1) {
+                actualResult.splice(this.selStart - 1, 1);
+              } else {
+                actualResult.splice(this.selStart, this.selEnd - this.selStart);
+              }
+            }
+          }
+        }
+      } else {
+        actualResult = [];
+      }
+      if (this.showMaskTyped) {
+        inputValue = this.removeMask(inputValue);
+      }
       newInputValue =
         this.actualValue.length && actualResult.length <= inputValue.length
           ? this.shiftTypedSymbols(actualResult.join(''))
@@ -88,11 +97,11 @@ export class MaskService extends MaskApplierService {
 
     // b) remove decimal marker from list of special characters to mask
     if (this.maskExpression.startsWith('separator') && this.dropSpecialCharacters === true) {
-      this.maskSpecialCharacters = this.maskSpecialCharacters.filter((item: string) => item !== this.decimalMarker);
+      this.maskSpecialCharacters = this.maskSpecialCharacters.filter(
+        (item: string) => !this._compareOrIncludes(item, this.decimalMarker, this.thousandSeparator)
+      );
     }
-
     this.formControlResult(result);
-
     if (!this.showMaskTyped) {
       if (this.hiddenInput) {
         return result && result.length ? this.hideInput(result, this.maskExpression) : result;
@@ -111,23 +120,11 @@ export class MaskService extends MaskApplierService {
     return result + prefNmask.slice(resLen);
   }
 
-  // get the number of characters that were shifted
-  private _numberSkipedSymbols(value: string): number {
-    const regex = /(^|\D)(\d\D)/g;
-    let match = regex.exec(value);
-    let countSkipedSymbol = 0;
-    while (match != null) {
-      countSkipedSymbol += 1;
-      match = regex.exec(value);
-    }
-    return countSkipedSymbol;
-  }
-
   public applyValueChanges(
     position: number = 0,
     justPasted: boolean,
     backspaced: boolean,
-    cb: Function = () => {}
+    cb: (shift: number, backspaceShift: boolean) => void = () => {}
   ): void {
     const formElement = this._elementRef.nativeElement;
     formElement.value = this.applyMask(formElement.value, this.maskExpression, position, justPasted, backspaced, cb);
@@ -240,14 +237,26 @@ export class MaskService extends MaskApplierService {
     );
   }
 
+  // get the number of characters that were shifted
+  private _numberSkipedSymbols(value: string): number {
+    const regex = /(^|\D)(\d\D)/g;
+    let match = regex.exec(value);
+    let countSkipedSymbol = 0;
+    while (match != null) {
+      countSkipedSymbol += 1;
+      match = regex.exec(value);
+    }
+    return countSkipedSymbol;
+  }
+
   private _checkForIp(inputVal: string): string {
     if (inputVal === '#') {
       return `${this.placeHolderCharacter}.${this.placeHolderCharacter}.${this.placeHolderCharacter}.${this.placeHolderCharacter}`;
     }
     const arr: string[] = [];
-    for (let i = 0; i < inputVal.length; i++) {
-      if (inputVal[i].match('\\d')) {
-        arr.push(inputVal[i]);
+    for (const item of inputVal) {
+      if (item.match('\\d')) {
+        arr.push(item);
       }
     }
     if (arr.length <= 3) {
@@ -282,9 +291,9 @@ export class MaskService extends MaskApplierService {
       return cpf;
     }
     const arr: string[] = [];
-    for (let i = 0; i < inputVal.length; i++) {
-      if (inputVal[i].match('\\d')) {
-        arr.push(inputVal[i]);
+    for (const item of inputVal) {
+      if (item.match('\\d')) {
+        arr.push(item);
       }
     }
     if (arr.length <= 3) {
@@ -319,10 +328,11 @@ export class MaskService extends MaskApplierService {
    * is true. If that is true it means we are currently in the writeValue function, which is supposed to only update the actual
    * DOM element based on the Angular model value. It should be a one way process, i.e. writeValue should not be modifying the Angular
    * model value too. Therefore, we don't trigger onChange in this scenario.
+   *
    * @param inputValue the current form input value
    */
   private formControlResult(inputValue: string): void {
-    if (this.writingValue || this.maskChanged) {
+    if (this.writingValue || (!this.triggerOnMaskChange && this.maskChanged)) {
       this.maskChanged = false;
       return;
     }
@@ -378,7 +388,8 @@ export class MaskService extends MaskApplierService {
 
     const separatorPrecision: number | null = this._retrieveSeparatorPrecision(this.maskExpression);
     let separatorValue: string = this._retrieveSeparatorValue(result);
-    if (this.decimalMarker !== '.') {
+
+    if (this.decimalMarker !== '.' && !Array.isArray(this.decimalMarker)) {
       separatorValue = separatorValue.replace(this.decimalMarker, '.');
     }
 
@@ -397,7 +408,7 @@ export class MaskService extends MaskApplierService {
 
   // TODO should think about helpers or separting decimal precision to own property
   private _retrieveSeparatorPrecision(maskExpretion: string): number | null {
-    const matcher: RegExpMatchArray | null = maskExpretion.match(new RegExp(`^separator\\.([^d]*)`));
+    const matcher: RegExpMatchArray | null = maskExpretion.match(new RegExp('^separator\\.([^d]*)'));
     return matcher ? Number(matcher[1]) : null;
   }
 

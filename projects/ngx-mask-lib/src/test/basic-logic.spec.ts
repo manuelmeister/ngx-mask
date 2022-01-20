@@ -315,7 +315,7 @@ describe('Directive: Mask', () => {
     component.mask = '[000]-[000]*[00]';
     component.specialCharacters = ['[', ']', '-', '*'];
     component.patterns = {
-      '0': {
+      0: {
         pattern: new RegExp('[a-zA-Z]'),
       },
     };
@@ -331,7 +331,7 @@ describe('Directive: Mask', () => {
     component.mask = '[00]*[000]';
     component.specialCharacters = ['[', ']', '*'];
     component.patterns = {
-      '0': {
+      0: {
         pattern: new RegExp('\\d'),
       },
     };

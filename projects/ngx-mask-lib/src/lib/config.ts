@@ -4,7 +4,7 @@ export interface IConfig {
   suffix: string;
   prefix: string;
   thousandSeparator: string;
-  decimalMarker: '.' | ',';
+  decimalMarker: '.' | ',' | ['.', ','];
   clearIfNotMatch: boolean;
   showTemplate: boolean;
   showMaskTyped: boolean;
@@ -17,6 +17,7 @@ export interface IConfig {
   separatorLimit: string;
   allowNegativeNumbers: boolean;
   leadZeroDateTime: boolean;
+  triggerOnMaskChange: boolean;
   patterns: {
     [character: string]: {
       pattern: RegExp;
@@ -26,6 +27,7 @@ export interface IConfig {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export type optionsConfig = Partial<IConfig>;
 export const config: InjectionToken<IConfig> = new InjectionToken('config');
 export const NEW_CONFIG: InjectionToken<IConfig> = new InjectionToken('NEW_CONFIG');
@@ -35,7 +37,7 @@ export const initialConfig: IConfig = {
   suffix: '',
   prefix: '',
   thousandSeparator: ' ',
-  decimalMarker: '.',
+  decimalMarker: ['.', ','],
   clearIfNotMatch: false,
   showTemplate: false,
   showMaskTyped: false,
@@ -46,24 +48,27 @@ export const initialConfig: IConfig = {
   separatorLimit: '',
   allowNegativeNumbers: false,
   validation: true,
-  // tslint:disable-next-line: quotemark
   specialCharacters: ['-', '/', '(', ')', '.', ':', ' ', '+', ',', '@', '[', ']', '"', "'"],
   leadZeroDateTime: false,
+  triggerOnMaskChange: false,
   patterns: {
-    '0': {
+    0: {
       pattern: new RegExp('\\d'),
     },
-    '9': {
+    9: {
       pattern: new RegExp('\\d'),
       optional: true,
     },
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     X: {
       pattern: new RegExp('\\d'),
       symbol: '*',
     },
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     A: {
       pattern: new RegExp('[a-zA-Z0-9]'),
     },
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     S: {
       pattern: new RegExp('[a-zA-Z]'),
     },
@@ -73,9 +78,11 @@ export const initialConfig: IConfig = {
     m: {
       pattern: new RegExp('\\d'),
     },
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     M: {
       pattern: new RegExp('\\d'),
     },
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     H: {
       pattern: new RegExp('\\d'),
     },

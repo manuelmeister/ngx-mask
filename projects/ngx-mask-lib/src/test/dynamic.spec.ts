@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { By } from '@angular/platform-browser';
-import { DebugElement } from '@angular/core';
 import { NgxMaskModule } from '../lib/ngx-mask.module';
 import { ReactiveFormsModule } from '@angular/forms';
 import { TestMaskComponent } from './utils/test-component.component';
@@ -49,6 +48,50 @@ describe('Directive: Mask (Dynamic)', () => {
     inputEl = fixture.debugElement.query(By.css('input'));
     Promise.resolve().then(() => {
       expect(inputEl.nativeElement.value).toEqual('12345-6');
+    });
+  });
+
+  it('Change mask dynamically from mask several masks to one', async () => {
+    component.mask = '(000)0000-000||(000)0000-0000||00-00000-00000'; // China phone formats
+    fixture.detectChanges();
+
+    component.form.setValue({
+      value: 1234567890,
+    });
+    fixture.detectChanges();
+    let inputEl = fixture.debugElement.query(By.css('input'));
+    Promise.resolve().then(() => {
+      expect(inputEl.nativeElement.value).toEqual('(123)4567-890');
+    });
+
+    component.form.setValue({
+      value: 12345678901,
+    });
+    fixture.detectChanges();
+    inputEl = fixture.debugElement.query(By.css('input'));
+    Promise.resolve().then(() => {
+      expect(inputEl.nativeElement.value).toEqual('(123)4567-8901');
+    });
+
+    component.form.setValue({
+      value: 123456789012,
+    });
+    fixture.detectChanges();
+    inputEl = fixture.debugElement.query(By.css('input'));
+    Promise.resolve().then(() => {
+      expect(inputEl.nativeElement.value).toEqual('12-34567-89012');
+    });
+
+    component.mask = '00-00-00-00'; // For example Denmark phone format
+    fixture.detectChanges();
+
+    component.form.setValue({
+      value: 12345678,
+    });
+    fixture.detectChanges();
+    inputEl = fixture.debugElement.query(By.css('input'));
+    Promise.resolve().then(() => {
+      expect(inputEl.nativeElement.value).toEqual('12-34-56-78');
     });
   });
 });

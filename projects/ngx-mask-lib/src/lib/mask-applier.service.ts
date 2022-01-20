@@ -54,14 +54,14 @@ export class MaskApplierService {
   }
 
   public applyMask(
-    inputValue: string,
+    inputValue: string | object | boolean | null | undefined,
     maskExpression: string,
     position: number = 0,
     justPasted: boolean = false,
     backspaced: boolean = false,
-    cb: Function = () => {}
+    cb: (shift: number, backspaceShift: boolean) => void = () => {}
   ): string {
-    if (inputValue === undefined || inputValue === null || maskExpression === undefined) {
+    if (!maskExpression || typeof inputValue !== 'string') {
       return '';
     }
     let cursor = 0;
@@ -82,9 +82,9 @@ export class MaskApplierService {
       maskExpression = '099.099.099.099';
     }
     const arr: string[] = [];
-    for (let i = 0; i < inputValue.length; i++) {
-      if (inputValue[i].match('\\d')) {
-        arr.push(inputValue[i]);
+    for (const item of inputValue) {
+      if (item.match('\\d')) {
+        arr.push(item);
       }
     }
     if (maskExpression === 'CPF_CNPJ') {
@@ -120,32 +120,51 @@ export class MaskApplierService {
       ) {
         inputValue = this._stripToDecimal(inputValue);
       }
-
       inputValue =
-        inputValue.length > 1 && inputValue[0] === '0' && inputValue[1] !== this.decimalMarker && !backspaced
+        inputValue.length > 1 &&
+        inputValue[0] === '0' &&
+        !this._compareOrIncludes(inputValue[1], this.decimalMarker, this.thousandSeparator) &&
+        !backspaced
           ? inputValue.slice(1, inputValue.length)
           : inputValue;
 
+      if (backspaced) {
+        // eslint-disable-next-line no-param-reassign
+        inputValue = this._compareOrIncludes(
+          inputValue[inputValue.length - 1],
+          this.decimalMarker,
+          this.thousandSeparator
+        )
+          ? inputValue.slice(0, inputValue.length - 1)
+          : inputValue;
+      }
       // TODO: we had different rexexps here for the different cases... but tests dont seam to bother - check this
       //  separator: no COMMA, dot-sep: no SPACE, COMMA OK, comma-sep: no SPACE, COMMA OK
 
-      const thousandSeperatorCharEscaped: string = this._charToRegExpExpression(this.thousandSeparator);
-      const decimalMarkerEscaped: string = this._charToRegExpExpression(this.decimalMarker);
-      const invalidChars: string = '@#!$%^&*()_+|~=`{}\\[\\]:\\s,\\.";<>?\\/'
-        .replace(thousandSeperatorCharEscaped, '')
-        .replace(decimalMarkerEscaped, '');
+      const thousandSeparatorCharEscaped: string = this._charToRegExpExpression(this.thousandSeparator);
+      let invalidChars: string = '@#!$%^&*()_+|~=`{}\\[\\]:\\s,\\.";<>?\\/'.replace(thousandSeparatorCharEscaped, '');
+      //.replace(decimalMarkerEscaped, '');
+      if (Array.isArray(this.decimalMarker)) {
+        for (const marker of this.decimalMarker) {
+          invalidChars = invalidChars.replace(this._charToRegExpExpression(marker), '');
+        }
+      } else {
+        invalidChars = invalidChars.replace(this._charToRegExpExpression(this.decimalMarker), '');
+      }
 
-      const invalidCharRegexp: RegExp = new RegExp('[' + invalidChars + ']');
+      const invalidCharRegexp = new RegExp('[' + invalidChars + ']');
 
-      if (inputValue.match(invalidCharRegexp)) {
+      if (
+        inputValue.match(invalidCharRegexp) ||
+        (inputValue.length === 1 && this._compareOrIncludes(inputValue, this.decimalMarker, this.thousandSeparator))
+      ) {
         inputValue = inputValue.substring(0, inputValue.length - 1);
       }
 
       const precision: number = this.getPrecision(maskExpression);
       inputValue = this.checkInputPrecision(inputValue, precision, this.decimalMarker);
-      const strForSep: string = inputValue.replace(new RegExp(thousandSeperatorCharEscaped, 'g'), '');
+      const strForSep: string = inputValue.replace(new RegExp(thousandSeparatorCharEscaped, 'g'), '');
       result = this._formatWithSeparators(strForSep, this.thousandSeparator, this.decimalMarker, precision);
-
       const commaShift: number = result.indexOf(',') - inputValue.indexOf(',');
       const shiftStep: number = result.length - inputValue.length;
 
@@ -170,7 +189,7 @@ export class MaskApplierService {
       }
     } else {
       for (
-        // tslint:disable-next-line
+        // eslint-disable-next-line
         let i: number = 0, inputSymbol: string = inputArray[0];
         i < inputArray.length;
         i++, inputSymbol = inputArray[i]
@@ -407,10 +426,19 @@ export class MaskApplierService {
   private _formatWithSeparators = (
     str: string,
     thousandSeparatorChar: string,
-    decimalChar: string,
+    decimalChars: string | string[],
     precision: number
   ) => {
-    const x: string[] = str.split(decimalChar);
+    let x: string[] = [];
+    let decimalChar = '';
+    if (Array.isArray(decimalChars)) {
+      const regExp = new RegExp(decimalChars.map((v) => ('[\\^$.|?*+()'.indexOf(v) >= 0 ? `\\${v}` : v)).join('|'));
+      x = str.split(regExp);
+      decimalChar = str.match(regExp)?.[0] ?? '';
+    } else {
+      x = str.split(decimalChars);
+      decimalChar = decimalChars;
+    }
     const decimals: string = x.length > 1 ? `${decimalChar}${x[1]}` : '';
     let res: string = x[0];
     const separatorLimit: string = this.separatorLimit.replace(/\s/g, '');
@@ -421,7 +449,7 @@ export class MaskApplierService {
         res = res.slice(0, separatorLimit.length);
       }
     }
-    const rgx: RegExp = /(\d+)(\d{3})/;
+    const rgx = /(\d+)(\d{3})/;
 
     while (thousandSeparatorChar && rgx.test(res)) {
       res = res.replace(rgx, '$1' + thousandSeparatorChar + '$2');
@@ -435,9 +463,7 @@ export class MaskApplierService {
     return res + decimals.substr(0, precision + 1);
   };
 
-  private percentage = (str: string): boolean => {
-    return Number(str) >= 0 && Number(str) <= 100;
-  };
+  private percentage = (str: string): boolean => Number(str) >= 0 && Number(str) <= 100;
 
   private getPrecision = (maskExpression: string): number => {
     const x: string[] = maskExpression.split('.');
@@ -467,14 +493,23 @@ export class MaskApplierService {
     decimalMarker: IConfig['decimalMarker']
   ): string => {
     if (precision < Infinity) {
-      const precisionRegEx: RegExp = new RegExp(this._charToRegExpExpression(decimalMarker) + `\\d{${precision}}.*$`);
+      // TODO need think about decimalMarker
+      if (Array.isArray(decimalMarker)) {
+        const marker = decimalMarker.find((dm) => dm !== this.thousandSeparator);
+        // eslint-disable-next-line no-param-reassign
+        decimalMarker = marker ? marker : decimalMarker[0];
+      }
+      const precisionRegEx = new RegExp(this._charToRegExpExpression(decimalMarker) + `\\d{${precision}}.*$`);
 
       const precisionMatch: RegExpMatchArray | null = inputValue.match(precisionRegEx);
       if (precisionMatch && precisionMatch[0].length - 1 > precision) {
         const diff = precisionMatch[0].length - 1 - precision;
         inputValue = inputValue.substring(0, inputValue.length - diff);
       }
-      if (precision === 0 && inputValue.endsWith(decimalMarker)) {
+      if (
+        precision === 0 &&
+        this._compareOrIncludes(inputValue[inputValue.length - 1], decimalMarker, this.thousandSeparator)
+      ) {
         inputValue = inputValue.substring(0, inputValue.length - 1);
       }
     }
@@ -484,22 +519,19 @@ export class MaskApplierService {
   private _stripToDecimal(str: string): string {
     return str
       .split('')
-      .filter((i: string, idx: number) => {
-        return (
-          i.match('^-?\\d') ||
-          i.match('\\s') ||
-          i === '.' ||
-          i === ',' ||
-          (i === '-' && idx === 0 && this.allowNegativeNumbers)
-        );
-      })
+      .filter(
+        (i: string, idx: number) => i.match('\\d|\\s|\\.|\\,') || (i === '-' && idx === 0 && this.allowNegativeNumbers)
+      )
       .join('');
   }
 
   private _charToRegExpExpression(char: string): string {
+    // if (Array.isArray(char)) {
+    // 	return char.map((v) => ('[\\^$.|?*+()'.indexOf(v) >= 0 ? `\\${v}` : v)).join('|');
+    // }
     if (char) {
       const charsToEscape = '[\\^$.|?*+()';
-      return char === ' ' ? '\\s' : charsToEscape.indexOf(char) >= 0 ? '\\' + char : char;
+      return char === ' ' ? '\\s' : charsToEscape.indexOf(char) >= 0 ? `\\${char}` : char;
     }
     return char;
   }
@@ -507,5 +539,11 @@ export class MaskApplierService {
   private _shiftStep(maskExpression: string, cursor: number, inputLength: number) {
     const shiftStep: number = /[*?]/g.test(maskExpression.slice(0, cursor)) ? inputLength : cursor;
     this._shift.add(shiftStep + this.prefix.length || 0);
+  }
+
+  protected _compareOrIncludes<T>(value: T, comparedValue: T | T[], excludedValue: T): boolean {
+    return Array.isArray(comparedValue)
+      ? comparedValue.filter((v) => v !== excludedValue).includes(value)
+      : value === comparedValue;
   }
 }

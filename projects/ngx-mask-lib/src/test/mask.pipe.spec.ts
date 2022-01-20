@@ -37,6 +37,7 @@ describe('Pipe: Mask', () => {
 
   it('should custom pattern', () => {
     const patttern: IConfig['patterns'] = {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       P: {
         pattern: new RegExp('\\d'),
       },

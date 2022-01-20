@@ -8,7 +8,7 @@ if (environment.production) {
   enableProdMode();
 }
 
-// tslint:disable:no-console
+/* eslint-disable no-console */
 platformBrowserDynamic()
   .bootstrapModule(AppModule)
   .catch((err) => console.log(err));

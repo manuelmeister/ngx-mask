@@ -1,5 +1,5 @@
-// tslint:disable-next-line:no-any
-export function typeTest(inputValue: string, fixture: any): string {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const typeTest = (inputValue: string, fixture: any) => {
   fixture.detectChanges();
 
   fixture.nativeElement.querySelector('input').value = inputValue;
@@ -8,10 +8,10 @@ export function typeTest(inputValue: string, fixture: any): string {
 
   fixture.detectChanges();
   return fixture.nativeElement.querySelector('input').value;
-}
+};
 
-// tslint:disable-next-line:no-any
-export function equal(value: string, expectedValue: string, fixture: any, async = false): void {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const equal = (value: string, expectedValue: string, fixture: any, async = false) => {
   typeTest(value, fixture);
 
   if (async) {
@@ -21,4 +21,4 @@ export function equal(value: string, expectedValue: string, fixture: any, async 
     return;
   }
   expect(fixture.nativeElement.querySelector('input').value).toBe(expectedValue);
-}
+};
