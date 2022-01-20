@@ -1,3 +1,11 @@
+<a name="12.2.0"></a>
+
+# 12.2.0 (2022-01-20)
+
+### Features
+
+- added triggerOnMaskChange, allow mask change to trigger onChange
+
 <a name="12.1.2"></a>
 
 # 12.1.2 (2022-01-20)

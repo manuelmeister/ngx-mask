@@ -20,6 +20,8 @@ export class MaskService extends MaskApplierService {
   public writingValue: boolean = false;
   public maskChanged: boolean = false;
 
+  public triggerOnMaskChange: boolean = false;
+
   public constructor(
     @Inject(DOCUMENT) private document: any,
     @Inject(config) protected _config: IConfig,
@@ -330,7 +332,7 @@ export class MaskService extends MaskApplierService {
    * @param inputValue the current form input value
    */
   private formControlResult(inputValue: string): void {
-    if (this.writingValue || this.maskChanged) {
+    if (this.writingValue || (!this.triggerOnMaskChange && this.maskChanged)) {
       this.maskChanged = false;
       return;
     }

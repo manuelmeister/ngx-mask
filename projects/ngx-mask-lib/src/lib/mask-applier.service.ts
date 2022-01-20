@@ -430,7 +430,7 @@ export class MaskApplierService {
     precision: number
   ) => {
     let x: string[] = [];
-    let decimalChar: string = '';
+    let decimalChar = '';
     if (Array.isArray(decimalChars)) {
       const regExp = new RegExp(decimalChars.map((v) => ('[\\^$.|?*+()'.indexOf(v) >= 0 ? `\\${v}` : v)).join('|'));
       x = str.split(regExp);
